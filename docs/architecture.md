@@ -187,7 +187,7 @@ Surge、Surfboard、Loon、Egern、Shadowrocket、Quantumult X、v2ray、URI 和
 
 同一份规则集只生成一次（例如 `ChinaIP` 和 `GEOIP,CN` 共用 `geoip/cn.srs`），策略是 `REJECT` 时写成 `action: "reject"`，其余写成 `outbound`。`download_detour: "DIRECT"` 是必需的：sing-box 1.12/1.13 没有 `http_clients`，不指定时规则集会走默认出站（也就是代理），代理不可用时整份配置直接启动失败。1.14 起该字段会给出弃用告警，等 1.16 真正移除后再按客户端版本切换到 `http_clients`。
 
-不是 MetaCubeX 的规则集（例如 Loyalsoldier 预设的 `.txt`、自定义 URL）会由 Worker 转换后提供：`/download/collection/<collection-id>/ruleset/<provider>?token=<download-token>` 拉取模板里那个 provider，按 `payload` YAML 或 Surge 风格文本解析，输出 sing-box source 格式（`+.domain` → `domain_suffix`、裸域名 → `domain_suffix`、CIDR → `ip_cidr`、`DOMAIN-KEYWORD,` → `domain_keyword`、`PROCESS-NAME,` → `process_name`），结果按 provider 的 `interval` 缓存在 Cache API。profile 里对应写成：
+不是 MetaCubeX 的规则集（例如 Loyalsoldier 预设的 `.txt`、自定义 URL）会由 Worker 转换后提供：`/download/collection/<collection-id>/ruleset/<provider>?token=<download-token>` 拉取模板里那个 provider，按 `payload` YAML 或 Surge 风格文本解析，输出 sing-box source 格式（`+.domain` → `domain_suffix`、裸域名 → `domain_suffix`、CIDR → `ip_cidr`、`DOMAIN-KEYWORD,` → `domain_keyword`、`PROCESS-NAME,` → `process_name`、`DST-PORT,` / `SRC-PORT,` → 数字 `port` / `source_port`，区间写法 `1000-2000` → `port_range` 的 `"1000:2000"`），结果按 provider 的 `interval` 缓存在 Cache API。profile 里对应写成：
 
 ```json
 { "type": "remote", "tag": "reject", "format": "source",

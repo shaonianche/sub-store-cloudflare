@@ -45,6 +45,28 @@ describe("Clash rule provider conversion", () => {
     });
   });
 
+  it("emits numbers for port rules and port_range for ranges", () => {
+    const text = [
+      "DST-PORT,8080",
+      "DST-PORT,8443",
+      "DST-PORT,1000-2000",
+      "SRC-PORT,53",
+      "DST-PORT,not-a-port",
+      "SRC-PORT,70000-80000",
+      "",
+    ].join("\n");
+    const document = toSingBoxRuleSet(text);
+    expect(document).toEqual({
+      version: 1,
+      rules: [
+        { port: [8080, 8443] },
+        { port_range: ["1000:2000"] },
+        { source_port: [53] },
+        { source_port_range: ["70000:80000"] },
+      ],
+    });
+  });
+
   it("keeps a bare CIDR as an IP rule and everything else as a domain suffix", () => {
     expect(classifyRuleProviderEntry("+.example.com")).toEqual({ field: "domain_suffix", value: "example.com" });
     expect(classifyRuleProviderEntry("*.example.com")).toEqual({ field: "domain_suffix", value: "example.com" });

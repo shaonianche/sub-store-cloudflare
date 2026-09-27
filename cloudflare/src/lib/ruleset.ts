@@ -20,10 +20,16 @@ const RULE_FIELD_BY_TYPE: Record<string, string> = {
 };
 
 const CIDR_PATTERN = /^[0-9a-fA-F:.]+\/\d{1,3}$/;
+const PORT_PATTERN = /^\d{1,5}$/;
+const PORT_RANGE_PATTERN = /^(\d{1,5})-(\d{1,5})$/;
+
+// sing-box rule sets take numbers for ports (and `port_range` for ranges),
+// while Clash payloads are all strings.
+const NUMERIC_RULE_FIELDS = new Set(["port", "source_port"]);
 
 export type SingBoxRuleSetDocument = {
   version: 1;
-  rules: Array<Record<string, string[]>>;
+  rules: Array<Record<string, string[] | number[]>>;
 };
 
 // Loyalsoldier `.txt` and blackmatrix `.yaml` providers ship a YAML `payload`
@@ -51,7 +57,15 @@ export function classifyRuleProviderEntry(entry: string) {
   if (parts.length > 1) {
     const field = RULE_FIELD_BY_TYPE[head];
     if (!field) return undefined;
-    return parts[1] ? { field, value: parts[1] } : undefined;
+    const value = parts[1];
+    if (!value) return undefined;
+    if (NUMERIC_RULE_FIELDS.has(field)) {
+      const range = PORT_RANGE_PATTERN.exec(value);
+      if (range) return { field: `${field}_range`, value: `${range[1]}:${range[2]}` };
+      // A malformed port would make sing-box reject the whole profile.
+      return PORT_PATTERN.test(value) ? { field, value } : undefined;
+    }
+    return { field, value };
   }
   // Payload entries: `+.example.com`, `*.example.com`, `example.com`, `10.0.0.0/8`.
   const value = line.replace(/^\+\./, "").replace(/^\*\./, "");
@@ -68,7 +82,12 @@ export function toSingBoxRuleSet(text: string): SingBoxRuleSetDocument {
     values.add(classified.value);
     buckets.set(classified.field, values);
   }
-  const rules = [...buckets].map(([field, values]) => ({ [field]: [...values].sort() }));
+  const rules = [...buckets].map(([field, values]) => {
+    const list = [...values].sort();
+    return NUMERIC_RULE_FIELDS.has(field)
+      ? { [field]: list.map((value) => Number(value)) }
+      : { [field]: list };
+  });
   return { version: 1, rules };
 }
 
